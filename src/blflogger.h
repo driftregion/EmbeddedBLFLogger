@@ -1,7 +1,12 @@
 #include "can_common.h"
 #include "stdio.h"
 #include "unistd.h"
+
+#ifdef ESP_PLATFORM
+#include "zlib/zlib.h"
+#else
 #include "zlib.h"
+#endif // ESP_PLATFORM
 
 #define APPLICATION_ID 0xf00
 
@@ -258,6 +263,7 @@ void BLFWriter::_write_header()
 		.signature = {'L', 'O', 'G', 'G'},
 		.header_size = FILE_HEADER_SIZE,
 		.application_id = 0,
+		.application_major = 0,
 		.application_minor = 0,
 		.application_build = 0,
 		.bin_log_major = 0,
@@ -271,6 +277,7 @@ void BLFWriter::_write_header()
 		.time_start = timestamp_to_systemtime(start_timestamp),
 		.time_stop = timestamp_to_systemtime(stop_timestamp),
 	};
+
 	fseek(file, 0, SEEK_SET);
 
 	fwrite(&header, sizeof(file_header_t), 1, file);

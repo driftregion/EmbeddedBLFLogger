@@ -78,13 +78,18 @@ typedef struct {
 
 const int CAN_FRAME_LENGTH_BYTES = 8;
 
+
 typedef struct {
 	uint16_t channel;
+#define TX 1
+#define NERR 6
+#define WU 7
+#define RTR 8
 	uint8_t flags;
 	uint8_t dlc;
 	uint32_t arbitration_id;
 	uint8_t data[CAN_FRAME_LENGTH_BYTES];
-} blf_can_msg_t;
+} can_msg_t;
 
 class BLFWriter
 {
@@ -129,18 +134,20 @@ BLFWriter::BLFWriter(const char *filepath) :
 
 void BLFWriter::log(frameobject_t &fobj)
 {
-	static blf_can_msg_t msg;
+	can_msg_t msg;
 
 	msg.arbitration_id = fobj.frame.id;
 	msg.dlc = fobj.frame.length;
 	msg.flags = 0;
+	if (fobj.direction == FRAME_DIRECTION_TX)
+		msg.flags |= TX;
 	msg.channel = fobj.bus_number;
 	for (uint8_t i = 0; i < fobj.frame.length; i++)
 	{
 		msg.data[i] = fobj.frame.data.bytes[i];
 	}
 
-	_add_object(CAN_MESSAGE, &msg, sizeof(blf_can_msg_t), fobj.frame.timestamp);
+	_add_object(CAN_MESSAGE, &msg, sizeof(can_msg_t), fobj.frame.timestamp);
 }
 
 void BLFWriter::set_start_timestamp(uint64_t timestamp)
@@ -195,7 +202,6 @@ void BLFWriter::_add_object(blf_objtype_t type, void *data, size_t size, uint64_
 
 void BLFWriter::_flush()
 {
-	printf("FLUSHD\n");
 	if (file == NULL)
 		return;
 	Bytef data[MAX_CACHE_SIZE];
@@ -274,5 +280,6 @@ void BLFWriter::_write_header()
 
 void BLFWriter::stop()
 {
+	_flush();
 	_write_header();
 }

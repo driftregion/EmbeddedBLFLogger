@@ -17,8 +17,7 @@ def main():
         reader = BLFReader(filename)
         for frame in reader:
             print(frame)
-
-
+            ipdb.set_trace()
 
 if __name__ == '__main__':
     main()

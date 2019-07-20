@@ -1,0 +1,3 @@
+[submodule "can_common"]
+	path = can_common
+	url = https://github.com/driftregion/can_common

@@ -5,11 +5,14 @@
 #include "stdio.h"
 #include "unistd.h"
 
+
+extern "C" {
 #ifdef ESP_PLATFORM
 #include "zlib/zlib.h"
 #else
 #include "zlib.h"
 #endif // ESP_PLATFORM
+}
 
 #define APPLICATION_ID 0xf00
 
@@ -89,10 +92,10 @@ const int CAN_FRAME_LENGTH_BYTES = 8;
 
 typedef struct {
 	uint16_t channel;
-#define TX 1
-#define NERR 6
-#define WU 7
-#define RTR 8
+#define CAN_MSG_FLAG_TX 1
+#define CAN_MSG_FLAG_NERR 6
+#define CAN_MSG_FLAG_WU 7
+#define CAN_MSG_FLAG_RTR 8
 	uint8_t flags;
 	uint8_t dlc;
 	uint32_t arbitration_id;
@@ -111,7 +114,7 @@ class BLFWriter
 
 	protected:
 		const static uint64_t FILE_HEADER_SIZE = 144;
-		const static uint64_t MAX_CACHE_SIZE = 128 * 1024;
+		const static uint64_t MAX_CACHE_SIZE = 1024;
 		uint8_t cache[MAX_CACHE_SIZE];
 		uint64_t cache_size;
 		uint64_t uncompressed_size;

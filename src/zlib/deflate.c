@@ -1,3 +1,5 @@
+#include "esp_log.h"
+
 /* deflate.c -- compress data using the deflation algorithm
  * Copyright (C) 1995-2017 Jean-loup Gailly and Mark Adler
  * For conditions of distribution and use, see copyright notice in zlib.h
@@ -303,6 +305,7 @@ int ZEXPORT deflateInit2_(strm, level, method, windowBits, memLevel, strategy,
     if (windowBits == 8) windowBits = 9;  /* until 256-byte window bug fixed */
     s = (deflate_state *) ZALLOC(strm, 1, sizeof(deflate_state));
     if (s == Z_NULL) return Z_MEM_ERROR;
+    
     strm->state = (struct internal_state FAR *)s;
     s->strm = strm;
     s->status = INIT_STATE;     /* to pass state test in deflateReset() */
@@ -326,9 +329,30 @@ int ZEXPORT deflateInit2_(strm, level, method, windowBits, memLevel, strategy,
 
     s->lit_bufsize = 1 << (memLevel + 6); /* 16K elements by default */
 
+    ESP_LOGE("tag", "s->w_size: %u, s->hash_size: %u, s->lit_bufize: %u", s->w_size, s->hash_size, s->lit_bufsize);
+
     overlay = (ushf *) ZALLOC(strm, s->lit_bufsize, sizeof(ush)+2);
     s->pending_buf = (uchf *) overlay;
     s->pending_buf_size = (ulg)s->lit_bufsize * (sizeof(ush)+2L);
+
+    ESP_LOGE("tag", "s->pending_buf: %p, s->head: %p, s->prev: %p, s->window: %p", s->pending_buf, s->head, s->prev, s->window);
+
+    ESP_LOGE("tag", "s->w_size * 2*sizeof(Byte): %u", s->w_size * 2*sizeof(Byte));
+    ESP_LOGE("tag", "s->w_size * sizeof(Pos): %u", s->w_size * sizeof(Pos));
+    ESP_LOGE("tag", "s->hash_size * sizeof(Pos): %u", s->hash_size * sizeof(Pos));
+    ESP_LOGE("tag", "s->lit_bufsize * sizeof(ush) + 2: %u", s->lit_bufsize * sizeof(ush) + 2);
+
+    // if (s->pending_buf == Z_NULL )
+    // {
+    //     int *a = 0;
+    //     *a = 4;
+    // }
+
+    // if (s->head == Z_NULL )
+    // {
+    //     int *a = 0;
+    //     *a = 4;
+    // }
 
     if (s->window == Z_NULL || s->prev == Z_NULL || s->head == Z_NULL ||
         s->pending_buf == Z_NULL) {

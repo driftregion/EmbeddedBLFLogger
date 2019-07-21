@@ -1,4 +1,6 @@
-#include "blflogger.h"
+#include "blflogger.h" 
+#include <Arduino.h>
+#include "zlib/zutil.h"
 
 BLFWriter::BLFWriter(const char *filepath) :
 	filepath(filepath),
@@ -23,7 +25,7 @@ void BLFWriter::log(frameobject_t &fobj)
 	msg.dlc = fobj.frame.length;
 	msg.flags = 0;
 	if (fobj.direction == FRAME_DIRECTION_TX)
-		msg.flags |= TX;
+		msg.flags |= CAN_MSG_FLAG_TX;
 	msg.channel = fobj.bus_number;
 	for (uint8_t i = 0; i < fobj.frame.length; i++)
 	{
@@ -59,7 +61,7 @@ void BLFWriter::_add_object(blf_objtype_t type, void *data, size_t size, uint64_
 	};
 
 	char buf[obj_size];
-	auto offset = 0;
+	uint64_t offset = 0;
 	memcpy(&buf[offset], &base_header, sizeof(base_header));
 	offset += sizeof(base_header);
 	memcpy(&buf[offset], &obj_header, sizeof(obj_header));
@@ -74,6 +76,7 @@ void BLFWriter::_add_object(blf_objtype_t type, void *data, size_t size, uint64_
 		offset += padding_size;
 	}
 
+	Serial.printf("cache_size + offset: %llu, max_cache: %llu\n", cache_size + offset, MAX_CACHE_SIZE);
 	if (cache_size + offset > MAX_CACHE_SIZE)
 		_flush();
 	
@@ -85,12 +88,25 @@ void BLFWriter::_add_object(blf_objtype_t type, void *data, size_t size, uint64_
 
 void BLFWriter::_flush()
 {
+	Serial.printf("Flushing!\n");
 	if (file == NULL)
 		return;
-	Bytef data[MAX_CACHE_SIZE];
+	/*
+	destLen is the total size of the destination buffer, which must be at
+	least 0.1% larger than sourceLen plus 12 bytes.
+	*/
+	// uLongf destLen = MAX_CACHE_SIZE + MAX_CACHE_SIZE / 100 + 12;
+	
+	uLongf destLen = MAX_CACHE_SIZE * 2;
+	Bytef data[destLen];
 
-	uLongf destLen = MAX_CACHE_SIZE;
-	compress(data, &destLen, cache, cache_size);
+	auto ret = compress2(data, &destLen, cache, cache_size, 0);
+	if (ret == Z_STREAM_ERROR) Serial.printf("Stream error");
+	if (ret == Z_DATA_ERROR) Serial.printf("data error");
+	if (ret == Z_MEM_ERROR) Serial.printf("mem error");
+	if (ret == Z_BUF_ERROR) Serial.printf("buf error");
+
+	Serial.printf("compress returned: 0x%x\n", ret);
 
 	auto obj_size = sizeof(obj_header_v1_t) + sizeof(log_container_t) + destLen;
 
@@ -132,7 +148,6 @@ systemtime_t BLFWriter::timestamp_to_systemtime(const uint64_t timestamp)
 	return systemtime;
 }
 
-
 void BLFWriter::_write_header()
 {
 	auto file_size = ftell(file);
@@ -167,4 +182,5 @@ void BLFWriter::stop()
 {
 	_flush();
 	_write_header();
+	fclose(file);
 }

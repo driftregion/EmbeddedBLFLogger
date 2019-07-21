@@ -13,7 +13,7 @@ BLFWriter::BLFWriter(const char *filepath) : filepath(filepath),
     }
 }
 
-void BLFWriter::log(frameobject_t &fobj) {
+void BLFWriter::log(frameobject_t &fobj, uint64_t abs_timestamp_ns) {
     can_msg_t msg;
 
     msg.arbitration_id = fobj.frame.id;
@@ -21,23 +21,26 @@ void BLFWriter::log(frameobject_t &fobj) {
     msg.flags = 0;
     if (fobj.direction == FRAME_DIRECTION_TX)
         msg.flags |= CAN_MSG_FLAG_TX;
-    msg.channel = (uint16_t)fobj.bus_number + 1; // BLF stores a "0" channel as "1"
+    msg.channel = (uint16_t)fobj.bus_number; 
     for (uint8_t i = 0; i < fobj.frame.length; i++) {
         msg.data[i] = fobj.frame.data.bytes[i];
     }
 
-	uint64_t relative_timestamp_ns = (((uint64_t)fobj.frame.timestamp) * 1000 * 1000) - start_timestamp;
+    stop_timestamp = abs_timestamp_ns;
 
-    _add_object(CAN_MESSAGE, &msg, sizeof(can_msg_t), relative_timestamp_ns);
+    _add_object(CAN_MESSAGE, &msg, sizeof(can_msg_t), abs_timestamp_ns);
 }
 
 /*
 Start timestamp as nanoseconds since epoch
 */
-void BLFWriter::set_start_timestamp(uint64_t timestamp_ns) {
+void BLFWriter::set_start_timestamp_ns(uint64_t timestamp_ns) {
     start_timestamp = timestamp_ns;
 }
 
+/*
+Takes absolute timestamp in nanoseconds
+*/
 void BLFWriter::_add_object(blf_objtype_t type, void *data, size_t size, uint64_t timestamp_ns) {
     auto header_size = sizeof(obj_header_base_t) + sizeof(obj_header_v1_t);
     auto obj_size = header_size + size;
@@ -54,7 +57,7 @@ void BLFWriter::_add_object(blf_objtype_t type, void *data, size_t size, uint64_
         .flags = TIME_ONE_NANS,
         .client_index = 0,
         .object_version = 0,
-        .timestamp = timestamp_ns,
+        .timestamp =  timestamp_ns,
     };
 
     char buf[obj_size];
@@ -115,10 +118,10 @@ void BLFWriter::_flush() {
     memset(cache, 0, MAX_CACHE_SIZE);
 }
 
-systemtime_t BLFWriter::timestamp_to_systemtime(const uint64_t timestamp) {
+systemtime_t BLFWriter::timestamp_to_systemtime(const uint64_t timestamp_ns) {
     systemtime_t systemtime;
 
-    time_t timestamp_s = (time_t)(timestamp / 1000);
+    time_t timestamp_s = (time_t)(timestamp_ns / (1000 * 1000 * 1000));
     struct tm *tm;
     tm = gmtime(&timestamp_s);
 
@@ -129,7 +132,7 @@ systemtime_t BLFWriter::timestamp_to_systemtime(const uint64_t timestamp) {
     systemtime.hour = tm->tm_hour;
     systemtime.minute = tm->tm_min;
     systemtime.second = tm->tm_sec;
-    systemtime.millisecond = timestamp % 1000;
+    systemtime.millisecond = (timestamp_ns / (1000 * 1000)) % 1000;
 
     return systemtime;
 }

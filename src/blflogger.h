@@ -97,8 +97,8 @@ class BLFWriter {
   public:
     BLFWriter(const char *filepath);
     const char *filepath;
-    void log(frameobject_t &frame);
-    void set_start_timestamp(uint64_t timestamp);
+    void log(frameobject_t &frame, uint64_t abs_timestamp_ns);
+    void set_start_timestamp_ns(uint64_t abs_timestamp_ns);
     void sync();
     void stop();
     static systemtime_t timestamp_to_systemtime(const uint64_t timestamp);

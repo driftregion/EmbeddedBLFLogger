@@ -1,6 +1,4 @@
 #include "blflogger.h" 
-#include <Arduino.h>
-#include "zlib/zutil.h"
 
 BLFWriter::BLFWriter(const char *filepath) :
 	filepath(filepath),
@@ -76,7 +74,6 @@ void BLFWriter::_add_object(blf_objtype_t type, void *data, size_t size, uint64_
 		offset += padding_size;
 	}
 
-	Serial.printf("cache_size + offset: %llu, max_cache: %llu\n", cache_size + offset, MAX_CACHE_SIZE);
 	if (cache_size + offset > MAX_CACHE_SIZE)
 		_flush();
 	
@@ -88,27 +85,10 @@ void BLFWriter::_add_object(blf_objtype_t type, void *data, size_t size, uint64_
 
 void BLFWriter::_flush()
 {
-	Serial.printf("Flushing!\n");
 	if (file == NULL)
 		return;
-	/*
-	destLen is the total size of the destination buffer, which must be at
-	least 0.1% larger than sourceLen plus 12 bytes.
-	*/
-	// uLongf destLen = MAX_CACHE_SIZE + MAX_CACHE_SIZE / 100 + 12;
-	
-	uLongf destLen = MAX_CACHE_SIZE * 2;
-	Bytef data[destLen];
 
-	auto ret = compress2(data, &destLen, cache, cache_size, 0);
-	if (ret == Z_STREAM_ERROR) Serial.printf("Stream error");
-	if (ret == Z_DATA_ERROR) Serial.printf("data error");
-	if (ret == Z_MEM_ERROR) Serial.printf("mem error");
-	if (ret == Z_BUF_ERROR) Serial.printf("buf error");
-
-	Serial.printf("compress returned: 0x%x\n", ret);
-
-	auto obj_size = sizeof(obj_header_v1_t) + sizeof(log_container_t) + destLen;
+	auto obj_size = sizeof(obj_header_v1_t) + sizeof(log_container_t) + cache_size;
 
 	obj_header_base_t base_header = {
 		.signature = {'L', 'O', 'B', 'J'},
@@ -119,7 +99,7 @@ void BLFWriter::_flush()
 	};
 
 	log_container_t container = {
-		.compression_method = ZLIB_DEFLATE,
+		.compression_method = NO_COMPRESSION,
 		._pad0 = {0},
 		.size_uncompressed = cache_size,
 		._pad1 = {0},
@@ -129,7 +109,7 @@ void BLFWriter::_flush()
 
 	fwrite(&base_header, sizeof(obj_header_base_t), 1, file);
 	fwrite(&container, sizeof(log_container_t), 1, file);
-	fwrite(data, destLen, 1, file);
+	fwrite(cache, cache_size, 1, file);
 	if (padding_size)
 	{
 		fwrite("\x0", 1, padding_size, file);
